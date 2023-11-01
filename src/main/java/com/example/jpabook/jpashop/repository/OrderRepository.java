@@ -1,7 +1,12 @@
 package com.example.jpabook.jpashop.repository;
 
 import com.example.jpabook.jpashop.domain.Order;
+import com.example.jpabook.jpashop.domain.OrderStatus;
+import com.example.jpabook.jpashop.domain.QMember;
+import com.example.jpabook.jpashop.domain.QOrder;
 import com.example.jpabook.jpashop.repository.order.simplequery.OrderSimpleQueryDto;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -11,6 +16,10 @@ import javax.persistence.TypedQuery;
 import javax.persistence.criteria.*;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.example.jpabook.jpashop.domain.QMember.*;
+import static com.example.jpabook.jpashop.domain.QOrder.*;
+import static com.example.jpabook.jpashop.domain.QOrder.order;
 
 @Repository
 @RequiredArgsConstructor
@@ -119,6 +128,33 @@ public class OrderRepository {
                         " join fetch o.orderItems oi" +
                         " join fetch oi.item i", Order.class)
                 .getResultList();
+    }
+
+    public List<Order> findAll(OrderSearch orderSearch) {
+        JPAQueryFactory query = new JPAQueryFactory(em);
+        QOrder order = QOrder.order;
+        QMember member = QMember.member;
+
+        return query.select(order)
+                .join(order.member, member)
+                .limit(1000)
+                .where(statusEq(orderSearch.getOrderStatus()),
+                        nameLike(orderSearch.getMemberName()))
+                .fetch();
+    }
+
+    private BooleanExpression statusEq(OrderStatus statusCond) {
+        if (statusCond == null) {
+            return null;
+        }
+        return order.status.eq(statusCond);
+    }
+
+    private BooleanExpression nameLike(String nameCond) {
+        if (!StringUtils.hasText(nameCond)) {
+            return null;
+        }
+        return member.name.like(nameCond);
     }
 
     public List<Order> findAllWithMemberDelivery(int offset, int limit) {
